@@ -182,4 +182,43 @@ router.get('/export-links', async (req, res) => {
     }
 });
 
+// GET /api/admin/students - Fetch all students with submission status
+router.get('/students', async (req, res) => {
+    try {
+        const { data: students, error } = await supabase
+            .from('students')
+            .select(`
+                *,
+                submissions (
+                    score,
+                    submitted_at
+                )
+            `)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Process data
+        const detailedStudents = students.map(s => {
+            const sub = s.submissions && s.submissions.length > 0 ? s.submissions[0] : null;
+            return {
+                id: s.id,
+                name: s.name,
+                email: s.email,
+                token: s.token,
+                link: `/quiz/${s.token}`,
+                status: sub ? 'Submitted' : 'Pending',
+                score: sub ? sub.score : '-',
+                submittedAt: sub ? sub.submitted_at : null
+            };
+        });
+
+        res.json({ students: detailedStudents });
+
+    } catch (err) {
+        console.error('Fetch students error:', err);
+        res.status(500).json({ error: 'Failed to fetch students' });
+    }
+});
+
 export default router;
