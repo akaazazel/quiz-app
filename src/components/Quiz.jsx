@@ -14,6 +14,7 @@ const Quiz = () => {
   const [timeLeft, setTimeLeft] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(null);
+  const [hasStarted, setHasStarted] = useState(false);
 
   useEffect(() => {
     fetchQuiz();
@@ -24,9 +25,9 @@ const Quiz = () => {
       const res = await axios.get(`/api/quiz/${token}`);
       setQuizData(res.data);
       setLoading(false);
-      // Start
-      setQuizStartTime(Date.now());
-      setQuestionStartTime(Date.now());
+      // Don't start timers yet
+      // setQuizStartTime(Date.now());
+      // setQuestionStartTime(Date.now());
       if (res.data.questions.length > 0) {
         setTimeLeft(res.data.questions[0].time_seconds);
       }
@@ -38,7 +39,7 @@ const Quiz = () => {
   };
 
   useEffect(() => {
-    if (submitted || !quizData || loading) return;
+    if (submitted || !quizData || loading || !hasStarted) return;
 
     if (timeLeft === 0) {
       handleNext(null, true); // Timeout
@@ -50,7 +51,7 @@ const Quiz = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, submitted, quizData, loading]);
+  }, [timeLeft, submitted, quizData, loading, hasStarted]);
 
   const handleNext = (selectedIndex, isTimeout = false) => {
     const currentQ = quizData.questions[currentQuestionIndex];
@@ -91,6 +92,15 @@ const Quiz = () => {
     }
   };
 
+  const handleStart = () => {
+      setHasStarted(true);
+      setQuizStartTime(Date.now());
+      setQuestionStartTime(Date.now());
+      if (quizData.questions.length > 0) {
+        setTimeLeft(quizData.questions[0].time_seconds);
+      }
+  };
+
   if (loading) return <div className="p-4">Loading...</div>;
   if (error) return <div className="p-4 text-red-600">Error: {error}</div>;
   if (submitted) return (
@@ -100,6 +110,30 @@ const Quiz = () => {
         <p>Total Score (including time bonuses)</p>
     </div>
   );
+
+  if (!hasStarted) {
+      return (
+          <div className="p-4 max-w-xl mx-auto text-center mt-20">
+              <h1 className="text-4xl font-bold mb-6">Welcome, {quizData.student.name}!</h1>
+              <div className="bg-white p-6 rounded shadow mb-8 text-left">
+                  <h2 className="text-xl font-bold mb-4">Quiz Rules</h2>
+                  <ul className="list-disc pl-5 space-y-2">
+                      <li>You are about to start <strong>{quizData.quiz.title}</strong>.</li>
+                      <li>There are <strong>{quizData.questions.length} questions</strong>.</li>
+                      <li>Each question has a strict time limit.</li>
+                      <li>You get bonus points for answering quickly!</li>
+                      <li>Once started, you cannot pause or go back.</li>
+                  </ul>
+              </div>
+              <button
+                onClick={handleStart}
+                className="bg-blue-600 text-white px-8 py-3 rounded-lg text-xl font-bold hover:bg-blue-700 transition-colors"
+              >
+                  Start Quiz
+              </button>
+          </div>
+      );
+  }
 
   const currentQ = quizData.questions[currentQuestionIndex];
 
