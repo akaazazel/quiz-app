@@ -10,9 +10,11 @@ const Admin = () => {
   const [jsonFile, setJsonFile] = useState(null);
   const [csvFile, setCsvFile] = useState(null);
   const [message, setMessage] = useState('');
-  const [generatedLinks, setGeneratedLinks] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [studentList, setStudentList] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Helper to send auth header
+  const getAuthHeader = () => ({ headers: { 'x-admin-password': password } });
 
   // Fetch students function
   const fetchStudents = async () => {
@@ -24,24 +26,18 @@ const Admin = () => {
       }
   };
 
-  // Load students when authenticated
   useEffect(() => {
     if (authenticated) {
       fetchStudents();
     }
   }, [authenticated]);
 
-  // Helper to send auth header
-  const getAuthHeader = () => ({ headers: { 'x-admin-password': password } });
-
   const handleLogin = async () => {
       setLoading(true);
       try {
-          // Just test a route or call a specific login route
           await axios.post('/api/admin/login', {}, getAuthHeader());
           setAuthenticated(true);
           setMessage('');
-          fetchStudents(); // Fetch immediately
       } catch (err) {
           setMessage('Invalid Password');
       } finally {
@@ -98,9 +94,9 @@ const Admin = () => {
         try {
             setLoading(true);
             const csvContent = e.target.result;
-            const res = await axios.post('/api/admin/students', { csvContent }, getAuthHeader());
+            await axios.post('/api/admin/students', { csvContent }, getAuthHeader());
             setMessage('Students uploaded and links generated!');
-            fetchStudents(); // Refresh list
+            fetchStudents();
         } catch (err) {
             console.error(err);
             setMessage('Error uploading students: ' + (err.response?.data?.error || err.message));
@@ -118,7 +114,7 @@ const Admin = () => {
       try {
           await axios.delete('/api/admin/reset', getAuthHeader());
           setMessage('Database reset successfully.');
-          setStudentList([]); // Clear list
+          setStudentList([]);
       } catch (err) {
           setMessage('Reset failed: ' + err.message);
       } finally {
@@ -162,91 +158,95 @@ const Admin = () => {
 
   if (!authenticated) {
       return (
-          <div className="p-4 max-w-md mx-auto mt-20 bg-white shadow rounded">
-              <h1 className="text-xl font-bold mb-4">Admin Login</h1>
-              <input
-                type="password"
-                placeholder="Enter Admin Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full mb-4"
-              />
-              <button onClick={handleLogin} disabled={loading} className="w-full">
-                  {loading ? 'Checking...' : 'Login'}
-              </button>
-              {message && <p className="text-red-500 mt-2">{message}</p>}
+          <div className="container center" style={{ marginTop: '10vh' }}>
+              <div className="card" style={{ maxWidth: '400px', width: '100%' }}>
+                  <h1 className="text-center" style={{ fontSize: '1.5rem' }}>Admin Access</h1>
+                  <div className="stack">
+                      <input
+                        type="password"
+                        placeholder="Enter Admin Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="input"
+                      />
+                      <button onClick={handleLogin} disabled={loading} className="btn btn-primary w-full">
+                          {loading ? 'Checking...' : 'Login'}
+                      </button>
+                      {message && <p className="text-error text-center text-sm">{message}</p>}
+                  </div>
+              </div>
           </div>
       );
   }
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container">
+      <div className="row justify-between mb-8">
         <h1>Admin Dashboard</h1>
-        <div className="flex gap-2">
-            <button onClick={() => fetchStudents()} className="bg-gray-500 hover:bg-gray-600">Refresh</button>
-            <button onClick={handleExport} className="bg-green-600 hover:bg-green-700">Export Results</button>
-            <button onClick={handleExportLinks} className="bg-blue-600 hover:bg-blue-700">Export Links</button>
-            <button onClick={handleReset} className="bg-red-600 hover:bg-red-700">Reset Database</button>
+        <div className="row">
+            <button onClick={() => fetchStudents()} className="btn btn-secondary">Refresh</button>
+            <button onClick={handleExport} className="btn btn-secondary">Export Results</button>
+            <button onClick={handleExportLinks} className="btn btn-secondary">Export Links</button>
+            <button onClick={handleReset} className="btn btn-danger">Reset DB</button>
         </div>
       </div>
 
-      {message && <div className="p-3 mb-4 bg-blue-100 text-blue-800 rounded">{message}</div>}
+      {message && <div className="card mb-4" style={{ backgroundColor: 'var(--accents-1)', border: 'none' }}>{message}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="p-6 bg-white rounded shadow">
-            <h2 className="text-xl font-bold mb-4">1. Upload Quiz (JSON)</h2>
-            <div className="flex gap-2">
-                <input type="file" accept=".json" onChange={handleJsonChange} />
-                <button onClick={uploadQuestions} disabled={loading}>
-                    {loading ? 'Uploading...' : 'Upload'}
+      <div className="grid grid-2 mb-8">
+        <div className="card">
+            <h2>1. Upload Quiz</h2>
+            <p className="text-subtle text-sm mb-4">Upload a JSON file containing the questions.</p>
+            <div className="row">
+                <input type="file" accept=".json" onChange={handleJsonChange} className="input" style={{ flex: 1 }} />
+                <button onClick={uploadQuestions} disabled={loading} className="btn btn-primary">
+                    {loading ? '...' : 'Upload'}
                 </button>
             </div>
-            <p className="text-sm text-gray-500 mt-2">Format: <code>{`{ "title": "...", "questions": [...] }`}</code></p>
         </div>
 
-        <div className="p-6 bg-white rounded shadow">
-            <h2 className="text-xl font-bold mb-4">2. Upload Students (CSV)</h2>
-            <div className="flex gap-2">
-                <input type="file" accept=".csv" onChange={handleCsvChange} />
-                <button onClick={uploadStudents} disabled={loading}>
-                    {loading ? 'Processing...' : 'Upload'}
+        <div className="card">
+            <h2>2. Upload Students</h2>
+            <p className="text-subtle text-sm mb-4">Upload a CSV file (name, email) to generate links.</p>
+            <div className="row">
+                <input type="file" accept=".csv" onChange={handleCsvChange} className="input" style={{ flex: 1 }} />
+                <button onClick={uploadStudents} disabled={loading} className="btn btn-primary">
+                    {loading ? '...' : 'Upload'}
                 </button>
             </div>
-            <p className="text-sm text-gray-500 mt-2">Format: <code>name,email</code></p>
         </div>
       </div>
 
-      <div className="p-6 bg-white rounded shadow">
-        <h2 className="text-xl font-bold mb-4">Student List & Progress</h2>
-        <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
+      <div className="card">
+        <h2 className="mb-4">Student Progress</h2>
+        <div className="table-container">
+            <table>
                 <thead>
-                    <tr className="border-b bg-gray-50">
-                        <th className="p-3">Name</th>
-                        <th className="p-3">Email</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Score</th>
-                        <th className="p-3">Link</th>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Link</th>
                     </tr>
                 </thead>
                 <tbody>
                     {studentList.length === 0 ? (
-                        <tr><td colSpan="5" className="p-4 text-center text-gray-500">No students found.</td></tr>
+                        <tr><td colSpan="5" className="text-center text-subtle" style={{ padding: '2rem' }}>No data available. Upload students to begin.</td></tr>
                     ) : (
                         studentList.map((s) => (
-                            <tr key={s.id} className="border-b hover:bg-gray-50">
-                                <td className="p-3 font-medium">{s.name}</td>
-                                <td className="p-3">{s.email}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 rounded text-xs text-white ${s.status === 'Submitted' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                            <tr key={s.id}>
+                                <td><strong>{s.name}</strong></td>
+                                <td className="text-subtle">{s.email}</td>
+                                <td>
+                                    <span className={`badge ${s.status === 'Submitted' ? 'badge-success' : 'badge-warning'}`}>
                                         {s.status}
                                     </span>
                                 </td>
-                                <td className="p-3 font-bold">{s.score}</td>
-                                <td className="p-3">
-                                    <a href={s.link} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                                        Link
+                                <td>{s.score}</td>
+                                <td>
+                                    <a href={s.link} target="_blank" rel="noreferrer">
+                                        View Link
                                     </a>
                                 </td>
                             </tr>
