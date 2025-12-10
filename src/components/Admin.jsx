@@ -2,11 +2,33 @@ import { useState } from 'react';
 import axios from 'axios';
 
 const Admin = () => {
+  // Auth State
+  const [password, setPassword] = useState('');
+  const [authenticated, setAuthenticated] = useState(false);
+
+  // App State
   const [jsonFile, setJsonFile] = useState(null);
   const [csvFile, setCsvFile] = useState(null);
   const [message, setMessage] = useState('');
   const [generatedLinks, setGeneratedLinks] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  // Helper to send auth header
+  const getAuthHeader = () => ({ headers: { 'x-admin-password': password } });
+
+  const handleLogin = async () => {
+      setLoading(true);
+      try {
+          // Just test a route or call a specific login route
+          await axios.post('/api/admin/login', {}, getAuthHeader());
+          setAuthenticated(true);
+          setMessage('');
+      } catch (err) {
+          setMessage('Invalid Password');
+      } finally {
+          setLoading(false);
+      }
+  };
 
   const handleJsonChange = (e) => {
     setJsonFile(e.target.files[0]);
@@ -27,9 +49,6 @@ const Admin = () => {
       try {
         const jsonContent = JSON.parse(e.target.result);
         setLoading(true);
-        // Assuming title is inside JSON or we send a generic one
-        // The backend expects { title, questions }
-        // If the JSON is just an array of questions, we wrap it.
         let payload = {};
         if (Array.isArray(jsonContent)) {
             payload = { title: "Uploaded Quiz", questions: jsonContent };
@@ -37,7 +56,7 @@ const Admin = () => {
             payload = jsonContent;
         }
 
-        await axios.post('/api/admin/questions', payload);
+        await axios.post('/api/admin/questions', payload, getAuthHeader());
         setMessage('Questions uploaded successfully!');
       } catch (err) {
         console.error(err);
@@ -60,7 +79,7 @@ const Admin = () => {
         try {
             setLoading(true);
             const csvContent = e.target.result;
-            const res = await axios.post('/api/admin/students', { csvContent });
+            const res = await axios.post('/api/admin/students', { csvContent }, getAuthHeader());
             setGeneratedLinks(res.data.students);
             setMessage('Students uploaded and links generated!');
         } catch (err) {
@@ -73,9 +92,67 @@ const Admin = () => {
     reader.readAsText(csvFile);
   };
 
+  const handleReset = async () => {
+      if (!confirm('ARE YOU SURE? This will delete ALL data (students, quizzes, submissions).')) return;
+
+      setLoading(true);
+      try {
+          await axios.delete('/api/admin/reset', getAuthHeader());
+          setMessage('Database reset successfully.');
+          setGeneratedLinks([]);
+      } catch (err) {
+          setMessage('Reset failed: ' + err.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  const handleExport = async () => {
+      try {
+          const res = await axios.get('/api/admin/export', {
+              ...getAuthHeader(),
+              responseType: 'blob'
+          });
+          const url = window.URL.createObjectURL(new Blob([res.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', 'results.csv');
+          document.body.appendChild(link);
+          link.click();
+      } catch (err) {
+          setMessage('Export failed: ' + err.message);
+      }
+  };
+
+  if (!authenticated) {
+      return (
+          <div className="p-4 max-w-md mx-auto mt-20 bg-white shadow rounded">
+              <h1 className="text-xl font-bold mb-4">Admin Login</h1>
+              <input
+                type="password"
+                placeholder="Enter Admin Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full mb-4"
+              />
+              <button onClick={handleLogin} disabled={loading} className="w-full">
+                  {loading ? 'Checking...' : 'Login'}
+              </button>
+              {message && <p className="text-red-500 mt-2">{message}</p>}
+          </div>
+      );
+  }
+
   return (
     <div className="p-4 max-w-2xl mx-auto">
-      <h1>Admin Dashboard</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1>Admin Dashboard</h1>
+        <div className="flex gap-2">
+            <button onClick={handleExport} className="bg-green-600 hover:bg-green-700">Export Results</button>
+            <button onClick={handleReset} className="bg-red-600 hover:bg-red-700">Reset Database</button>
+        </div>
+      </div>
+
       {message && <div className="p-3 mb-4 bg-blue-100 text-blue-800 rounded">{message}</div>}
 
       <div className="mb-8 p-6 bg-white rounded shadow">
