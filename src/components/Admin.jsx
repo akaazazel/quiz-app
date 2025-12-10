@@ -124,6 +124,23 @@ const Admin = () => {
       }
   };
 
+  const handleExportLinks = async () => {
+      try {
+          const res = await axios.get('/api/admin/export-links', {
+              ...getAuthHeader(),
+              responseType: 'blob'
+          });
+          const url = window.URL.createObjectURL(new Blob([res.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          link.setAttribute('download', 'student_links.csv');
+          document.body.appendChild(link);
+          link.click();
+      } catch (err) {
+          setMessage('Export links failed: ' + err.message);
+      }
+  };
+
   if (!authenticated) {
       return (
           <div className="p-4 max-w-md mx-auto mt-20 bg-white shadow rounded">
@@ -149,6 +166,7 @@ const Admin = () => {
         <h1>Admin Dashboard</h1>
         <div className="flex gap-2">
             <button onClick={handleExport} className="bg-green-600 hover:bg-green-700">Export Results</button>
+            <button onClick={handleExportLinks} className="bg-blue-600 hover:bg-blue-700">Export Links</button>
             <button onClick={handleReset} className="bg-red-600 hover:bg-red-700">Reset Database</button>
         </div>
       </div>

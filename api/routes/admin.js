@@ -153,4 +153,33 @@ router.get('/export', async (req, res) => {
     }
 });
 
+// GET /api/admin/export-links
+router.get('/export-links', async (req, res) => {
+    try {
+        const { data: students, error } = await supabase
+            .from('students')
+            .select('*');
+
+        if (error) throw error;
+
+        const records = students.map(s => ({
+            Name: s.name,
+            Email: s.email,
+            Link: `/quiz/${s.token}`
+        }));
+
+        stringify(records, { header: true }, (err, output) => {
+            if (err) return res.status(500).json({ error: 'CSV gen error' });
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename="student_links.csv"');
+            res.status(200).send(output);
+        });
+
+    } catch (err) {
+        console.error('Export links error:', err);
+        res.status(500).json({ error: 'Failed to export links' });
+    }
+});
+
 export default router;
