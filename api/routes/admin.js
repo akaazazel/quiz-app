@@ -1,8 +1,8 @@
-import express from 'express';
-import { parse } from 'csv-parse';
-import { stringify } from 'csv-stringify';
-import supabase from '../supabase.js';
-import authMiddleware from '../middleware/auth.js';
+import express from "express";
+import { parse } from "csv-parse";
+import { stringify } from "csv-stringify";
+import supabase from "../supabase.js";
+import authMiddleware from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -10,119 +10,142 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // POST /api/admin/login (Check password validity)
-router.post('/login', (req, res) => {
-  // If middleware passed, password is good.
-  res.json({ success: true });
+router.post("/login", (req, res) => {
+    // If middleware passed, password is good.
+    res.json({ success: true });
 });
 
-router.post('/questions', async (req, res) => {
-  try {
-    const { title, questions } = req.body;
+router.post("/questions", async (req, res) => {
+    try {
+        const { title, questions } = req.body;
 
-    if (!questions || !Array.isArray(questions)) {
-      return res.status(400).json({ error: 'Invalid questions format' });
+        if (!questions || !Array.isArray(questions)) {
+            return res.status(400).json({ error: "Invalid questions format" });
+        }
+
+        const { data: quiz, error: quizError } = await supabase
+            .from("quizzes")
+            .insert([
+                { title: title || "Untitled Quiz " + new Date().toISOString() },
+            ])
+            .select()
+            .single();
+
+        if (quizError) throw quizError;
+
+        const formattedQuestions = questions.map((q) => {
+            let correctIndex = q.correctIndex;
+            if (correctIndex === undefined && q.correctAnswer) {
+                correctIndex = q.options.indexOf(q.correctAnswer);
+            }
+            if (correctIndex === -1 || correctIndex === undefined)
+                correctIndex = 0;
+
+            return {
+                quiz_id: quiz.id,
+                question_text: q.question,
+                options: q.options,
+                correct_index: correctIndex,
+                time_seconds: q.time || 30,
+            };
+        });
+
+        const { error: questionsError } = await supabase
+            .from("questions")
+            .insert(formattedQuestions);
+
+        if (questionsError) throw questionsError;
+
+        res.json({
+            success: true,
+            quizId: quiz.id,
+            message: "Quiz created successfully",
+        });
+    } catch (err) {
+        console.error("Error uploading questions:", err);
+        res.status(500).json({ error: err.message });
     }
-
-    const { data: quiz, error: quizError } = await supabase
-      .from('quizzes')
-      .insert([{ title: title || 'Untitled Quiz ' + new Date().toISOString() }])
-      .select()
-      .single();
-
-    if (quizError) throw quizError;
-
-    const formattedQuestions = questions.map(q => {
-      let correctIndex = q.correctIndex;
-      if (correctIndex === undefined && q.correctAnswer) {
-         correctIndex = q.options.indexOf(q.correctAnswer);
-      }
-      if (correctIndex === -1 || correctIndex === undefined) correctIndex = 0;
-
-      return {
-        quiz_id: quiz.id,
-        question_text: q.question,
-        options: q.options,
-        correct_index: correctIndex,
-        time_seconds: q.time || 30
-      };
-    });
-
-    const { error: questionsError } = await supabase
-      .from('questions')
-      .insert(formattedQuestions);
-
-    if (questionsError) throw questionsError;
-
-    res.json({ success: true, quizId: quiz.id, message: 'Quiz created successfully' });
-
-  } catch (err) {
-    console.error('Error uploading questions:', err);
-    res.status(500).json({ error: err.message });
-  }
 });
 
-router.post('/students', async (req, res) => {
-  try {
-    const { csvContent } = req.body;
-    if (!csvContent) return res.status(400).json({ error: 'No CSV content provided' });
+router.post("/students", async (req, res) => {
+    try {
+        const { csvContent } = req.body;
+        if (!csvContent)
+            return res.status(400).json({ error: "No CSV content provided" });
 
-    parse(csvContent, { columns: true, trim: true }, async (err, records) => {
-      if (err) {
-        return res.status(400).json({ error: 'Invalid CSV format' });
-      }
+        parse(
+            csvContent,
+            { columns: true, trim: true },
+            async (err, records) => {
+                if (err) {
+                    return res
+                        .status(400)
+                        .json({ error: "Invalid CSV format" });
+                }
 
-      const studentsToInsert = records.map(r => ({
-        name: r.name || r.Name,
-        email: r.email || r.Email
-      }));
+                const studentsToInsert = records.map((r) => ({
+                    name: r.name || r.Name,
+                    email: r.email || r.Email,
+                }));
 
-      const { data: createdStudents, error } = await supabase
-        .from('students')
-        .insert(studentsToInsert)
-        .select();
+                const { data: createdStudents, error } = await supabase
+                    .from("students")
+                    .insert(studentsToInsert)
+                    .select();
 
-      if (error) throw error;
+                if (error) throw error;
 
-      const studentsWithLinks = createdStudents.map(s => ({
-        ...s,
-        link: `/quiz/${s.token}`
-      }));
+                const studentsWithLinks = createdStudents.map((s) => ({
+                    ...s,
+                    link: `/quiz/${s.token}`,
+                }));
 
-      res.json({ success: true, students: studentsWithLinks });
-    });
-
-  } catch (err) {
-      console.error('Error processing students:', err);
-      res.status(500).json({ error: err.message });
-  }
+                res.json({ success: true, students: studentsWithLinks });
+            }
+        );
+    } catch (err) {
+        console.error("Error processing students:", err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE /api/admin/reset
-router.delete('/reset', async (req, res) => {
+router.delete("/reset", async (req, res) => {
     try {
         // Delete in order of constraints
         // submissions -> questions -> students -> quizzes (cascade might handle it, but explicit is safer without cascade)
         // Actually our schema doesn't have cascades defined explicitly in the provided SQL.
         // Assuming no stringent FK checks preventing deletions if we do it in order:
 
-        await supabase.from('submissions').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-        await supabase.from('questions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('students').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('quizzes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase
+            .from("submissions")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+        await supabase
+            .from("questions")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
+        await supabase
+            .from("students")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
+        await supabase
+            .from("quizzes")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
 
-        res.json({ success: true, message: 'Database reset successfully' });
+        res.json({ success: true, message: "Database reset successfully" });
     } catch (err) {
-        console.error('Reset error:', err);
-        res.status(500).json({ error: 'Failed to reset database' });
+        console.error("Reset error:", err);
+        res.status(500).json({ error: "Failed to reset database" });
     }
 });
 
 // GET /api/admin/export
-router.get('/export', async (req, res) => {
+router.get("/export", async (req, res) => {
     try {
         // Fetch all submissions with student info
-        const { data: submissions, error } = await supabase
-            .from('submissions')
+        const { data: submissions, error } = await supabase.from("submissions")
             .select(`
                 score,
                 submitted_at,
@@ -132,92 +155,100 @@ router.get('/export', async (req, res) => {
         if (error) throw error;
 
         // Flatten data
-        const records = submissions.map(sub => ({
+        const records = submissions.map((sub) => ({
             Name: sub.students.name,
             Email: sub.students.email,
             Score: sub.score,
-            SubmittedAt: new Date(sub.submitted_at).toLocaleString()
+            SubmittedAt: new Date(sub.submitted_at).toLocaleString(),
         }));
 
         stringify(records, { header: true }, (err, output) => {
-            if (err) return res.status(500).json({ error: 'CSV gen error' });
+            if (err) return res.status(500).json({ error: "CSV gen error" });
 
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename="results.csv"');
+            res.setHeader("Content-Type", "text/csv");
+            res.setHeader(
+                "Content-Disposition",
+                'attachment; filename="results.csv"'
+            );
             res.status(200).send(output);
         });
-
     } catch (err) {
-        console.error('Export error:', err);
-        res.status(500).json({ error: 'Failed to export results' });
+        console.error("Export error:", err);
+        res.status(500).json({ error: "Failed to export results" });
     }
 });
 
 // GET /api/admin/export-links
-router.get('/export-links', async (req, res) => {
+router.get("/export-links", async (req, res) => {
     try {
         const { data: students, error } = await supabase
-            .from('students')
-            .select('*');
+            .from("students")
+            .select("*");
 
         if (error) throw error;
 
-        const records = students.map(s => ({
+        const records = students.map((s) => ({
             Name: s.name,
             Email: s.email,
-            Link: `/quiz/${s.token}`
+            Link: `https://quiz-app-sage-ten-31.vercel.app/quiz/${s.token}`,
         }));
 
         stringify(records, { header: true }, (err, output) => {
-            if (err) return res.status(500).json({ error: 'CSV gen error' });
+            if (err) return res.status(500).json({ error: "CSV gen error" });
 
-            res.setHeader('Content-Type', 'text/csv');
-            res.setHeader('Content-Disposition', 'attachment; filename="student_links.csv"');
+            res.setHeader("Content-Type", "text/csv");
+            res.setHeader(
+                "Content-Disposition",
+                'attachment; filename="student_links.csv"'
+            );
             res.status(200).send(output);
         });
-
     } catch (err) {
-        console.error('Export links error:', err);
-        res.status(500).json({ error: 'Failed to export links' });
+        console.error("Export links error:", err);
+        res.status(500).json({ error: "Failed to export links" });
     }
 });
 
 // GET /api/admin/students - Fetch all students with submission status
-router.get('/students', async (req, res) => {
+router.get("/students", async (req, res) => {
     try {
         const { data: students, error } = await supabase
-            .from('students')
-            .select(`
+            .from("students")
+            .select(
+                `
                 *,
                 submissions (
                     score,
                     submitted_at
                 )
-            `)
-            .order('created_at', { ascending: false });
+            `
+            )
+            .order("created_at", { ascending: false });
 
         if (error) throw error;
 
         // Process data
-        const detailedStudents = students.map(s => {
-            const sub = s.submissions && s.submissions.length > 0 ? s.submissions[0] : null;
+        const detailedStudents = students.map((s) => {
+            const sub =
+                s.submissions && s.submissions.length > 0
+                    ? s.submissions[0]
+                    : null;
             return {
                 id: s.id,
                 name: s.name,
                 email: s.email,
                 token: s.token,
                 link: `/quiz/${s.token}`,
-                status: sub ? 'Submitted' : 'Pending',
-                score: sub ? sub.score : '-',
-                submittedAt: sub ? sub.submitted_at : null
+                status: sub ? "Submitted" : "Pending",
+                score: sub ? sub.score : "-",
+                submittedAt: sub ? sub.submitted_at : null,
             };
         });
 
         res.json({ students: detailedStudents });
-
     } catch (err) {
-        console.error('Fetch students error:', err);
-        res.status(500).json({ error: 'Failed to fetch students' });
+        console.error("Fetch students error:", err);
+        res.status(500).json({ error: "Failed to fetch students" });
     }
 });
 
