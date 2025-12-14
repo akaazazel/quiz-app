@@ -71,7 +71,7 @@ export default function Registration() {
               value={formData.name}
               onChange={handleChange}
               required
-              placeholder="Ex: John Doe"
+              placeholder="eg: Eren Yeager"
             />
           </div>
 
@@ -86,7 +86,7 @@ export default function Registration() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                placeholder="Ex: john@example.com"
+                placeholder="eg: erenyeager@gmail.com"
                 />
             </div>
              <div className="form-group">
@@ -99,7 +99,7 @@ export default function Registration() {
                 value={formData.phone}
                 onChange={handleChange}
                 required
-                placeholder="Ex: 9876543210"
+                placeholder="eg: 0246967670"
                 />
             </div>
           </div>
@@ -139,6 +139,7 @@ export default function Registration() {
               id="institution_name"
               name="institution_name"
               className="input"
+              placeholder={formData.institution_type === 'school' ? '' : 'eg: College of Engineering Paradis'}
               value={formData.institution_name}
               onChange={handleChange}
               required
@@ -156,7 +157,7 @@ export default function Registration() {
                     value={formData.class_grade}
                     onChange={handleChange}
                     required
-                    placeholder="Ex: 10th, 12th"
+                    placeholder="eg: 12th"
                 />
             </div>
           )}
@@ -174,7 +175,7 @@ export default function Registration() {
                             value={formData.course}
                             onChange={handleChange}
                             required
-                            placeholder="Ex: B.Tech, MCA"
+                            placeholder="eg: B.Tech, MCA"
                         />
                     </div>
                      <div className="form-group">
@@ -187,7 +188,7 @@ export default function Registration() {
                             value={formData.branch}
                             onChange={handleChange}
                             required
-                            placeholder="Ex: CS, ME, Civil"
+                            placeholder="eg: Computer Science"
                         />
                     </div>
                 </div>
@@ -201,7 +202,7 @@ export default function Registration() {
                         value={formData.semester}
                         onChange={handleChange}
                         required
-                        placeholder="Ex: 1st, 5th"
+                        placeholder="eg: 1, 5"
                     />
                 </div>
             </div>
