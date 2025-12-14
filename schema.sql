@@ -53,3 +53,7 @@ alter table students add column if not exists class_grade text; -- 'class' is a 
 alter table students add column if not exists course text;
 alter table students add column if not exists branch text;
 alter table students add column if not exists semester text;
+
+-- Migration for Quiz Active Status
+alter table quizzes add column if not exists is_active boolean default true;
+

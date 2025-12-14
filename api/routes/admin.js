@@ -144,23 +144,44 @@ router.delete("/reset", async (req, res) => {
 // GET /api/admin/export
 router.get("/export", async (req, res) => {
     try {
-        // Fetch all submissions with student info
+        // Fetch all submissions with DETAILED student info
         const { data: submissions, error } = await supabase.from("submissions")
             .select(`
                 score,
+                answers,
                 submitted_at,
-                students ( name, email )
+                students (
+                    name,
+                    email,
+                    phone,
+                    institution_type,
+                    institution_name,
+                    class_grade,
+                    course,
+                    branch,
+                    semester
+                )
             `);
 
         if (error) throw error;
 
         // Flatten data
-        const records = submissions.map((sub) => ({
-            Name: sub.students.name,
-            Email: sub.students.email,
-            Score: sub.score,
-            SubmittedAt: new Date(sub.submitted_at).toLocaleString(),
-        }));
+        const records = submissions.map((sub) => {
+            const s = sub.students;
+            return {
+                Name: s.name,
+                Email: s.email,
+                Phone: s.phone || '',
+                Type: s.institution_type || '',
+                Institution: s.institution_name || '',
+                Class: s.class_grade || '',
+                Course: s.course || '',
+                Branch: s.branch || '',
+                Semester: s.semester || '',
+                Score: sub.score,
+                SubmittedAt: new Date(sub.submitted_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+            };
+        });
 
         stringify(records, { header: true }, (err, output) => {
             if (err) return res.status(500).json({ error: "CSV gen error" });
@@ -175,6 +196,50 @@ router.get("/export", async (req, res) => {
     } catch (err) {
         console.error("Export error:", err);
         res.status(500).json({ error: "Failed to export results" });
+    }
+});
+
+router.get("/quiz-status", async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from('quizzes')
+            .select('id, is_active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 is no rows
+            throw error;
+        }
+
+        if (!data) {
+            return res.json({ available: false });
+        }
+
+        res.json({ available: true, id: data.id, isActive: data.is_active });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to fetch status" });
+    }
+});
+
+router.post("/toggle-quiz", async (req, res) => {
+    try {
+        const { id, isActive } = req.body;
+
+        const { error } = await supabase
+            .from('quizzes')
+            .update({ is_active: isActive })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        res.json({ success: true, isActive });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Update failed" });
     }
 });
 
@@ -241,7 +306,7 @@ router.get("/students", async (req, res) => {
                 link: `/quiz/${s.token}`,
                 status: sub ? "Submitted" : "Pending",
                 score: sub ? sub.score : "-",
-                submittedAt: sub ? sub.submitted_at : null,
+                submittedAt: sub ? new Date(sub.submitted_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : null,
             };
         });
 

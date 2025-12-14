@@ -12,11 +12,12 @@ const Admin = () => {
   const [message, setMessage] = useState('');
   const [studentList, setStudentList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [quizActive, setQuizActive] = useState(null);
+  const [quizId, setQuizId] = useState(null);
 
   // Helper to send auth header
   const getAuthHeader = () => ({ headers: { 'x-admin-password': password } });
 
-  // Fetch students function
   const fetchStudents = async () => {
       try {
           const res = await axios.get('/api/admin/students', getAuthHeader());
@@ -26,9 +27,22 @@ const Admin = () => {
       }
   };
 
+  const fetchQuizStatus = async () => {
+    try {
+        const res = await axios.get('/api/admin/quiz-status', getAuthHeader());
+        if (res.data.available) {
+            setQuizId(res.data.id);
+            setQuizActive(res.data.isActive);
+        }
+    } catch (err) {
+        console.error('Failed to fetch quiz status', err);
+    }
+  };
+
   useEffect(() => {
     if (authenticated) {
       fetchStudents();
+      fetchQuizStatus();
     }
   }, [authenticated]);
 
@@ -156,6 +170,19 @@ const Admin = () => {
       }
   };
 
+  const handleToggleQuiz = async () => {
+    if (!quizId) return;
+    try {
+        const newStatus = !quizActive;
+        await axios.post('/api/admin/toggle-quiz', { id: quizId, isActive: newStatus }, getAuthHeader());
+        setQuizActive(newStatus);
+        setMessage(`Quiz is now ${newStatus ? 'ENABLED' : 'DISABLED'}`);
+    } catch (err) {
+        console.error(err);
+        setMessage('Failed to toggle quiz');
+    }
+  };
+
   if (!authenticated) {
       return (
           <div className="container center" style={{ marginTop: '10vh' }}>
@@ -184,7 +211,7 @@ const Admin = () => {
       <div className="row justify-between mb-8">
         <h1>Admin Dashboard</h1>
         <div className="row">
-            <button onClick={() => fetchStudents()} className="btn btn-secondary">Refresh</button>
+            <button onClick={() => { fetchStudents(); fetchQuizStatus(); }} className="btn btn-secondary">Refresh</button>
             <button onClick={handleExport} className="btn btn-secondary">Export Results</button>
             <button onClick={handleExportLinks} className="btn btn-secondary">Export Links</button>
             <button onClick={handleReset} className="btn btn-danger">Reset DB</button>
@@ -193,9 +220,27 @@ const Admin = () => {
 
       {message && <div className="card mb-4" style={{ backgroundColor: 'var(--accents-1)', border: 'none' }}>{message}</div>}
 
+      {quizId && (
+        <div className="card mb-8" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Quiz Status: <span style={{ color: quizActive ? 'green' : 'red' }}>{quizActive ? 'ACTIVE' : 'DISABLED'}</span></h2>
+                <p className="text-subtle text-sm" style={{ margin: '0.5rem 0 0 0' }}>
+                    {quizActive ? 'Students can access and take the quiz.' : 'The quiz is currently locked. Students cannot enter.'}
+                </p>
+            </div>
+            <button
+                onClick={handleToggleQuiz}
+                className={`btn ${quizActive ? 'btn-danger' : 'btn-primary'}`}
+                style={{ padding: '0.75rem 1.5rem', fontSize: '1rem' }}
+            >
+                {quizActive ? 'Disable Quiz' : 'Enable Quiz'}
+            </button>
+        </div>
+      )}
+
       <div className="grid grid-2 mb-8">
         <div className="card">
-            <h2>1. Upload Quiz</h2>
+            <h2 style={{ fontSize: '1.25rem' }}>1. Upload Quiz</h2>
             <p className="text-subtle text-sm mb-4">Upload a JSON file containing the questions.</p>
             <div className="row">
                 <input type="file" accept=".json" onChange={handleJsonChange} className="input" style={{ flex: 1 }} />
@@ -206,7 +251,7 @@ const Admin = () => {
         </div>
 
         <div className="card">
-            <h2>2. Upload Students</h2>
+            <h2 style={{ fontSize: '1.25rem' }}>2. Upload Students</h2>
             <p className="text-subtle text-sm mb-4">Upload a CSV file (name, email) to generate links.</p>
             <div className="row">
                 <input type="file" accept=".csv" onChange={handleCsvChange} className="input" style={{ flex: 1 }} />
@@ -218,7 +263,7 @@ const Admin = () => {
       </div>
 
       <div className="card">
-        <h2 className="mb-4">Student Progress</h2>
+        <h2 className="mb-4" style={{ fontSize: '1.25rem' }}>Student Progress</h2>
         <div className="table-container">
             <table>
                 <thead>

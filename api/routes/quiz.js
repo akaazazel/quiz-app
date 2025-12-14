@@ -29,13 +29,17 @@ router.get('/:token', async (req, res) => {
 
     const { data: quizData, error: quizError } = await supabase
       .from('quizzes')
-      .select('id, title')
+      .select('id, title, is_active')
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
     if (quizError || !quizData) {
         return res.status(404).json({ error: 'No quiz active' });
+    }
+
+    if (quizData.is_active === false) {
+        return res.status(403).json({ error: 'Quiz is currently inactive' });
     }
 
     const { data: questions, error: questionsError } = await supabase
