@@ -141,35 +141,25 @@ router.delete("/students", async (req, res) => {
 });
 
 
-// DELETE /api/admin/reset
-router.delete("/reset", async (req, res) => {
+// DELETE /api/admin/quiz - Delete Quiz and Questions only
+router.delete("/quiz", async (req, res) => {
     try {
-        // Delete in order of constraints
-        // submissions -> questions -> students -> quizzes (cascade might handle it, but explicit is safer without cascade)
-        // Actually our schema doesn't have cascades defined explicitly in the provided SQL.
-        // Assuming no stringent FK checks preventing deletions if we do it in order:
-
-        await supabase
-            .from("submissions")
-            .delete()
-            .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all
+        // Delete questions first (FK constraint)
         await supabase
             .from("questions")
             .delete()
             .neq("id", "00000000-0000-0000-0000-000000000000");
-        await supabase
-            .from("students")
-            .delete()
-            .neq("id", "00000000-0000-0000-0000-000000000000");
+
+        // Delete quizzes
         await supabase
             .from("quizzes")
             .delete()
             .neq("id", "00000000-0000-0000-0000-000000000000");
 
-        res.json({ success: true, message: "Database reset successfully" });
+        res.json({ success: true, message: "Quiz deleted successfully. Students and submissions preserved." });
     } catch (err) {
-        console.error("Reset error:", err);
-        res.status(500).json({ error: "Failed to reset database" });
+        console.error("Delete quiz error:", err);
+        res.status(500).json({ error: "Failed to delete quiz" });
     }
 });
 

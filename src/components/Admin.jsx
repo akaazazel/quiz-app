@@ -122,16 +122,18 @@ const Admin = () => {
     reader.readAsText(csvFile);
   };
 
-  const handleReset = async () => {
-      if (!confirm('ARE YOU SURE? This will delete ALL data (students, quizzes, submissions).')) return;
+  const handleDeleteQuiz = async () => {
+      if (!confirm('ARE YOU SURE? This will delete the active QUIZ and QUESTIONS. Students and Submissions will remain.')) return;
 
       setLoading(true);
       try {
-          await axios.delete('/api/admin/reset', getAuthHeader());
-          setMessage('Database reset successfully.');
-          setStudentList([]);
+          await axios.delete('/api/admin/quiz', getAuthHeader());
+          setMessage('Quiz deleted successfully.');
+          setQuizActive(false);
+          setQuizId(null);
+          fetchQuizStatus();
       } catch (err) {
-          setMessage('Reset failed: ' + err.message);
+          setMessage('Delete failed: ' + (err.response?.data?.error || err.message));
       } finally {
           setLoading(false);
       }
@@ -258,7 +260,7 @@ const Admin = () => {
             )}
             <button onClick={handleExport} className="btn btn-secondary">Export Results</button>
             <button onClick={handleExportLinks} className="btn btn-secondary">Export Links</button>
-            <button onClick={handleReset} className="btn btn-danger">Reset DB</button>
+            <button onClick={handleDeleteQuiz} className="btn btn-danger">Delete Quiz</button>
         </div>
       </div>
 
