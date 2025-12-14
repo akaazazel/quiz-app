@@ -89,6 +89,22 @@ router.post('/register', async (req, res) => {
          return res.status(400).json({ error: 'Course, branch, and semester are required for college students' });
     }
 
+    // Check if quiz is active
+    const { data: quizData, error: quizError } = await supabase
+      .from('quizzes')
+      .select('is_active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (quizError || !quizData) {
+        return res.status(404).json({ error: 'No quiz found' });
+    }
+
+    if (quizData.is_active === false) {
+        return res.status(403).json({ error: 'Registration is closed (Quiz Inactive)' });
+    }
+
     // Check if email already exists
     const { data: existingStudent } = await supabase
         .from('students')
