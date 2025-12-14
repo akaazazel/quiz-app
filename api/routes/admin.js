@@ -108,6 +108,38 @@ router.post("/students", async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+// DELETE /api/admin/students - Bulk delete
+router.delete("/students", async (req, res) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ error: "Invalid IDs" });
+        }
+
+        // Delete submissions first (FK constraint)
+        const { error: subError } = await supabase
+            .from("submissions")
+            .delete()
+            .in("student_id", ids);
+
+        if (subError) throw subError;
+
+        // Delete students
+        const { error: studentError } = await supabase
+            .from("students")
+            .delete()
+            .in("id", ids);
+
+        if (studentError) throw studentError;
+
+        res.json({ success: true, message: "Students deleted" });
+
+    } catch (err) {
+        console.error("Bulk delete error:", err);
+        res.status(500).json({ error: "Failed to delete students" });
+    }
+});
+
 
 // DELETE /api/admin/reset
 router.delete("/reset", async (req, res) => {

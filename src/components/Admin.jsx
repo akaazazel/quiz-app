@@ -11,6 +11,7 @@ const Admin = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [message, setMessage] = useState('');
   const [studentList, setStudentList] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [quizActive, setQuizActive] = useState(null);
   const [quizId, setQuizId] = useState(null);
@@ -183,6 +184,46 @@ const Admin = () => {
     }
   };
 
+  const handleSelectAll = (e) => {
+      if (e.target.checked) {
+          setSelectedIds(studentList.map(s => s.id));
+      } else {
+          setSelectedIds([]);
+      }
+  };
+
+  const handleSelectStudent = (id) => {
+      setSelectedIds(prev => {
+          if (prev.includes(id)) {
+              return prev.filter(pid => pid !== id);
+          } else {
+              return [...prev, id];
+          }
+      });
+  };
+
+  const handleBulkDelete = async () => {
+      if (selectedIds.length === 0) return;
+      if (!confirm(`Are you sure you want to delete ${selectedIds.length} students?`)) return;
+
+      setLoading(true);
+      try {
+          // axios.delete with body requires 'data' key
+          await axios.delete('/api/admin/students', {
+              ...getAuthHeader(),
+              data: { ids: selectedIds }
+          });
+          setMessage('Students deleted successfully.');
+          setSelectedIds([]);
+          fetchStudents();
+      } catch (err) {
+          console.error(err);
+          setMessage('Delete failed: ' + err.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
   if (!authenticated) {
       return (
           <div className="container center" style={{ marginTop: '10vh' }}>
@@ -212,6 +253,9 @@ const Admin = () => {
         <h1>Admin Dashboard</h1>
         <div className="row">
             <button onClick={() => { fetchStudents(); fetchQuizStatus(); }} className="btn btn-secondary">Refresh</button>
+            {selectedIds.length > 0 && (
+                <button onClick={handleBulkDelete} className="btn btn-danger">Delete ({selectedIds.length})</button>
+            )}
             <button onClick={handleExport} className="btn btn-secondary">Export Results</button>
             <button onClick={handleExportLinks} className="btn btn-secondary">Export Links</button>
             <button onClick={handleReset} className="btn btn-danger">Reset DB</button>
@@ -268,6 +312,13 @@ const Admin = () => {
             <table>
                 <thead>
                     <tr>
+                        <th style={{ width: '40px' }}>
+                            <input
+                                type="checkbox"
+                                onChange={handleSelectAll}
+                                checked={studentList.length > 0 && selectedIds.length === studentList.length}
+                            />
+                        </th>
                         <th>Name</th>
                         <th>Email</th>
                         <th>Status</th>
@@ -281,6 +332,13 @@ const Admin = () => {
                     ) : (
                         studentList.map((s) => (
                             <tr key={s.id}>
+                                <td>
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(s.id)}
+                                        onChange={() => handleSelectStudent(s.id)}
+                                    />
+                                </td>
                                 <td><strong>{s.name}</strong></td>
                                 <td className="text-subtle">{s.email}</td>
                                 <td>
