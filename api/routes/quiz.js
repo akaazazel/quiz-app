@@ -57,6 +57,73 @@ router.get('/:token', async (req, res) => {
   }
 });
 
+
+router.post('/register', async (req, res) => {
+  try {
+    const {
+      name,
+      email,
+      phone,
+      institution_type,
+      institution_name,
+      class_grade,
+      course,
+      branch,
+      semester
+    } = req.body;
+
+    // Basic validation
+    if (!name || !email || !phone || !institution_type || !institution_name) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (institution_type === 'school' && !class_grade) {
+         return res.status(400).json({ error: 'Class is required for school students' });
+    }
+
+    if (institution_type === 'college' && (!course || !branch || !semester)) {
+         return res.status(400).json({ error: 'Course, branch, and semester are required for college students' });
+    }
+
+    // Check if email already exists
+    const { data: existingStudent } = await supabase
+        .from('students')
+        .select('id, token')
+        .eq('email', email)
+        .single();
+
+    if (existingStudent) {
+        // If they exist, deciding to just return their existing token so they can continue
+        // Or we could error. Let's return the token for smoother UX.
+        return res.json({ token: existingStudent.token, message: 'Welcome back!' });
+    }
+
+    const { data, error } = await supabase
+      .from('students')
+      .insert({
+        name,
+        email,
+        phone,
+        institution_type,
+        institution_name,
+        class_grade,
+        course,
+        branch,
+        semester
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ token: data.token });
+
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Registration failed' });
+  }
+});
+
 router.post('/submit', async (req, res) => {
   try {
     const { token, answers } = req.body;

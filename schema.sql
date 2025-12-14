@@ -44,3 +44,12 @@ alter table quizzes enable row level security;
 alter table questions enable row level security;
 alter table students enable row level security;
 alter table submissions enable row level security;
+
+-- Migrations for new student details
+alter table students add column if not exists phone text;
+alter table students add column if not exists institution_type text check (institution_type in ('school', 'college'));
+alter table students add column if not exists institution_name text;
+alter table students add column if not exists class_grade text; -- 'class' is a reserved keyword in some contexts, safer to use class_grade
+alter table students add column if not exists course text;
+alter table students add column if not exists branch text;
+alter table students add column if not exists semester text;

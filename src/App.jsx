@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import Admin from './components/Admin';
 import Quiz from './components/Quiz';
+import Registration from './components/Registration';
 
 function Landing() {
   return (
@@ -11,11 +12,12 @@ function Landing() {
           A simple, powerful platform for conducting quizzes.
         </p>
         <div className="stack">
-            <Link to="/admin" className="btn btn-primary w-full">Admin Dashboard</Link>
+            <Link to="/start" className="btn btn-primary w-full">Start Quiz</Link>
+            <Link to="/admin" className="btn w-full" style={{ backgroundColor: '#f3f4f6', color: '#1f2937' }}>Admin Dashboard</Link>
         </div>
         <div style={{ marginTop: '2rem' }}>
           <p className="text-sm text-subtle">
-            Students: Please check your email for your unique quiz link.
+             Enter your details to begin the quiz immediately.
           </p>
         </div>
       </div>
@@ -29,6 +31,7 @@ function App() {
       <div style={{ padding: '2rem 0' }}>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/start" element={<Registration />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/quiz/:token" element={<Quiz />} />
         </Routes>
