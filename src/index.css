@@ -291,3 +291,16 @@ tr:last-child td {
 .border-b {
     border-bottom: 1px solid var(--accents-2);
 }
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
